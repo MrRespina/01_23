@@ -1,0 +1,162 @@
+Hadoop : Linux 컴퓨터 여러대를 병렬처리해서 데이터를 분석해주는 Library
+
+1. DataNode 준비
+Hadoop에 참여할 컴퓨터 : DataNode
+
+DataNode 들 중에서 Main역할을 할 컴퓨터 : NameNode
+
+192.168.0.165 : DataNode / NameNode
+192.168.0.156 : DataNode
+192.168.0.103 : DataNode
+--------------------------------------------------------------------------------
+2. ssh server 설치
+
+	3대 다 > sudo apt-get install openssh-server
+	3대 다 > putty 연결
+
+	NN(NameNode) > ssh (다른 노드)
+	(exit) > 연결 해제
+
+2.1 인증서 만들기
+	3대 다 > ssh-keygen -t rsa
+	> 입력없이 엔터 3번
+
+2.2 인증서를 다른 컴퓨터에 전송 (현재 컴퓨터 포함)
+	
+	3대 다 > ssh-copy-id -i ~/.ssh/id_rsa.pub 계정@IP
+	ssh-copy-id -i ~/.ssh/id_rsa.pub respina@192.168.0.165
+	ssh-copy-id -i ~/.ssh/id_rsa.pub respina@192.168.0.156
+	ssh-copy-id -i ~/.ssh/id_rsa.pub respina@192.168.0.103
+---------------------------------------------------------------------------------
+3. 기타 필요한 것 설치
+
+3.1 vim-tiny > vim
+
+3.2 FTP 서버 설치 - 설정 - 재시작
+
+3.3 openJDK 저장소 - 업데이트 - 설치 - 확인
+
+sudo apt-get remove vim-tiny
+sudo apt-get install vim
+
+sudo apt-get install vsftpd
+sudo vi /etc/vsftpd.conf	> write_enable = Yes 로(주석 삭제)
+sudo service vsftpd restart
+
+sudo add-apt-repository ppa:openjdk-r/ppa
+sudo apt-get update
+sudo apt-get install openjdk-8-jdk
+java -version
+------------------------------------------------------------------------------
+Hadoop 설치
+- ver 3.3.3
+NN쪽 알드라이브 업로드
+
+압축 풀기
+	통일성을 위해서 폴더를 하나 만들기 (hadoop)
+	> 이후 압축 해제
+	> 남은 tar.gz은 삭제
+--------------------------------------------------------------------------
+Hadoop 설정
+
+설정 파일이 있는 쪽으로 이동 hadoop/hadoop-3.3.3/etc/hadoop
+
+1. JDK 위치 설정
+	1) vi hadoop-env.sh
+	2) /export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+
+2. 기본 설정
+	1) vi core-site.xml
+	2) <configuration> 내부에 값 추가
+
+	<property>
+		<name>fs.default.name</name>
+		<value>hdfs://[NameNodeIp]:9000</value>
+	</property>
+	<property>
+		<name>hadoop.tmp.dir</name>
+		<value>/home/[User Id]/hadoopTmpData</value>
+	</property>
+
+3. 하둡 파일시스템 관련 설정
+	1) vi hdfs-site.xml
+	2) <configuration> 내부에 값 추가
+
+	<property>
+		<name>dfs.replication</name>
+		<value>[컴퓨터 수]</value>
+	</property>
+	<property>
+		<name>dfs.http.address</name>
+		<value>[NameNodeIP]:50070</value>
+	</property>
+	<property>
+		<name>dfs.secondary.http.address</name>
+		<value>[다른 컴퓨터IP]:50090</value>
+	</property>
+
+4. MapReduce 작업 관련 설정
+	1) vi mapred-site.xml
+	2) <configuration> 내부에 값 추가
+
+	<property>
+		<name>mapred.job.tracker</name>
+		<value>[NameNodeIP]:9001</value>
+	</property>
+
+5. 사용할 컴퓨터 등록
+	1) vi workers
+	2) 'localhost' 삭제
+	3) 사용할 컴퓨터 IP주소 다 등록
+		ex) 192.168.0.165
+		     192.168.0.156
+		     192.168.0.103
+	4) 등록할 내용 다 입력했을 시 엔터처리 한번 더 해준 후 저장 종료
+
+============================================
+설정한 것 > 나머지 컴퓨터로 전송
+
+1. 최상위 경로로 이동
+2. 설정이 끝난 hadoop 폴더를 압축해서 (압축파일 이름 : myHadoop.tar.gz)
+tar cvzf myHadoop.tar.gz hadoop
+3. 알드라이브 새로고침 > 윈도우 저장
+4. 압축파일을 알드라이브를 이용해서 각 컴퓨터 보내기
+5. 압축 해제
+tar xvzf myHadoop.tar.gz
+	[NN제외 나머지 컴퓨터] 
+	압축해제 > 압축 파일 삭제
+----------------------------------------------------------------------
+[전부 다]
+	Hadoop 설정 파일들 체크
+-------------------------------------------
+Hadoop 실행 전에
+
+(한 번이라도 실행하면)
+1. 찌꺼기 폴더 삭제 해줘야함
+	rm -rf ~/hadoopTmpData
+
+2. 하둡 폴더로 이동
+	NameNode만 > 
+	cd ~/hadoop/hadoop-3.3.3
+
+3. 하둡 시스템 포맷
+	NameNode만 >
+	bin/hadoop namenode -format
+	bin/hadoop datanode -format
+
+4. 시작
+	NameNode만 >
+	sbin/start-all.sh
+
+5. 확인
+	전부 다 >
+	jps >> 확인
+
+6. 끄기
+	NameNode만 >
+	sbin/stop-all.sh
+
+jps 다 안나왔으면 - 설정 쪽에 문제가 있을 가능성이 높다/.
+그럴 때, 하둡 종료 > 설정 파일들 확인 > 1~5 실행
+-------------------------------------------------------------------------------
+R 설치할 것,
